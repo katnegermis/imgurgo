@@ -19,8 +19,17 @@ const (
 	imgUrl    = apiVerUrl + "image"
 )
 
-type Authorizer interface {
-	Authorize(req *http.Request) error
+type Authorizer struct {
+	AuthType     AuthType
+	ClientId     string
+	ClientSecret string
+	RequestState string
+	SecretChan   chan<- string
+	secretChan   chan string
+	AuthData     *AuthResponse
+
+	responseType string
+	grantType    string
 }
 
 type BasicResponse struct {
@@ -38,7 +47,6 @@ func NewRequest(authorizer Authorizer) *Request {
 	return &Request{Authorizer: authorizer, client: &http.Client{}}
 }
 
-// UploadImageFromPath ignores r.Path.
 func (r *Request) UploadImageFromPath(imgPath string) (*BasicResponse, error) {
 	imgData, err := Base64EncodeFile(imgPath)
 	if err != nil {
