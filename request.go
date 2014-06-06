@@ -19,19 +19,6 @@ const (
 	imgUrl    = apiVerUrl + "image"
 )
 
-type Authorizer struct {
-	AuthType     AuthType
-	ClientId     string
-	ClientSecret string
-	RequestState string
-	SecretChan   chan<- string
-	secretChan   chan string
-	AuthData     *AuthResponse
-
-	responseType string
-	grantType    string
-}
-
 type BasicResponse struct {
 	Data    interface{}
 	Success bool

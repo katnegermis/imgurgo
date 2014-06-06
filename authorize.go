@@ -20,7 +20,6 @@ const (
 	AuthTypeAnonymous AuthType = iota
 	AuthTypePin
 	AuthTypeCode
-	AuthTypeToken
 
 	responseTypePin   = "pin"
 	responseTypeCode  = "code"
@@ -32,48 +31,28 @@ const (
 	tokenLength = 40
 )
 
-type AuthType int8
-type RefreshToken string
+type Authorizer struct {
+	AuthType     AuthType
+	ClientId     string
+	ClientSecret string
+	RequestState string
+	SecretChan   chan<- string
+	secretChan   chan string
+	AuthData     *AuthData
 
-func (r RefreshToken) IsValid() bool {
-	return len(r) == tokenLength
-}
-
-type AuthResponse struct {
-	AccessToken     string       `json:"access_token"`
-	RefreshToken    RefreshToken `json:"refresh_token"`
-	expiresIn       int32        `json:"expires_in"`
-	TokenType       string       `json:"token_type"`
-	AccountUsername string       `json:"account_username"`
-	ExpirationTime  time.Time
+	responseType string
+	grantType    string
 }
 
 func NewAnonymousAuthorizer(clientId string) *Authorizer {
-	return &Authorizer{ClientId: clientId, AuthType: AuthTypeAnonymous}
-}
-
-func (a *Authorizer) Authorize(r *http.Request) error {
-	// Handle anonymous authentication.
-	if a.AuthType == AuthTypeAnonymous {
-		r.Header.Set("Authorization", fmt.Sprintf("Client-ID %s", a.ClientId))
-		return nil
-	}
-
-	if a.AuthData == nil || !a.AuthData.RefreshToken.IsValid() {
-		err := a.doOAuth()
-		if err != nil {
-			return err
-		}
-	} else if a.AuthData.ExpirationTime.After(time.Now()) && a.AuthData.RefreshToken.IsValid() {
-		return a.RefreshAccessToken()
-	}
-
-	r.Header.Set("Authorization", fmt.Sprintf("Bearer %s", a.AuthData.AccessToken))
-	return nil
-}
-
-func (a *Authorizer) RefreshAccessToken() error {
-	return errors.New("Not yet implemented.")
+	// Create AuthData in such a way that no OAuth requests will be sent.
+	// This preserves the rest of the code from making special flows for
+	// the anonymous authorizer.
+	authData := &AuthData{ExpirationTime: time.Now().Add(24 * 31 * time.Hour),
+		AccessToken: clientId, TokenType: "Client-ID",
+		RefreshToken: "0123456789012345678901234567890123456789"}
+	return &Authorizer{ClientId: clientId, AuthType: AuthTypeAnonymous,
+		AuthData: authData}
 }
 
 func NewPinAuthorizer(clientId, clientSecret, state string) *Authorizer {
@@ -84,8 +63,103 @@ func NewCodeAuthorizer(clientId, clientSecret, state string) *Authorizer {
 	return newAuthorizer(AuthTypeCode, clientId, clientSecret, state)
 }
 
-func NewTokenAuthorizer(clientId, clientSecret, state string) *Authorizer {
-	return newAuthorizer(AuthTypeToken, clientId, clientSecret, state)
+func (a *Authorizer) Authorize(r *http.Request) error {
+	// Check whether full authentication or refreshing of access token is needed.
+	if a.AuthData == nil || !a.RefreshTokenValid() {
+		err := a.doOAuth()
+		if err != nil {
+			return err
+		}
+	} else if a.AccessTokenExpired() && a.RefreshTokenValid() {
+		return a.RefreshAccessToken()
+	}
+
+	r.Header.Set("Authorization", fmt.Sprintf("%s %s",
+		a.AuthData.TokenType, a.AuthData.AccessToken))
+	return nil
+}
+
+func (a *Authorizer) RefreshAccessToken() error {
+	if !a.RefreshTokenValid() {
+		return errors.New("Can't refresh access token: " +
+			"Authorizer.AuthData.RefreshToken not valid.")
+	}
+	auth, err := postOAuthRequest(a.ClientId, a.ClientSecret,
+		"refresh_token", "refresh_token", a.AuthData.RefreshToken)
+	if err != nil {
+		return err
+	}
+	a.AuthData = auth
+	return nil
+}
+
+func (a *Authorizer) SetRefreshToken(token string) error {
+	if len(token) != tokenLength {
+		return errors.New(fmt.Sprintf("Invalid refresh token '%s' given!", token))
+	}
+
+	if a.AuthData == nil {
+		a.AuthData = &AuthData{}
+	}
+	a.AuthData.RefreshToken = token
+	return nil
+}
+
+func (a *Authorizer) AccessTokenExpired() bool {
+	return time.Now().After(a.AuthData.ExpirationTime)
+}
+
+func (a *Authorizer) RefreshTokenValid() bool {
+	return a.AuthData != nil && len(a.AuthData.RefreshToken) == tokenLength
+}
+
+func (a *Authorizer) doOAuth() error {
+	if a.AuthType == AuthTypeAnonymous {
+		return errors.New("AuthTypeAnonymous can't do oAuth authentication!")
+	}
+
+	var oAuthUrl string
+	if len(a.RequestState) == 0 {
+		oAuthUrl = fmt.Sprintf(authUrl, a.ClientId, a.responseType)
+	} else {
+		oAuthUrl = fmt.Sprintf(authUrlState, a.ClientId, a.responseType, a.RequestState)
+	}
+
+	// Spawn browser to let user log in.
+	// TODO: Make this platform independent.
+	cmd := exec.Command("xdg-open", oAuthUrl)
+	cmd.Start()
+
+	// Wait for secret (pin or authorization code) which we need to trade for
+	// our access- and refresh code.
+	var secret string
+	select {
+	case <-time.Tick(1 * time.Minute):
+		return errors.New(fmt.Sprintf("We waited too long; the %s has timed out. Try again.",
+			a.responseType))
+	case secret = <-a.secretChan:
+	}
+
+	// Fetch AuthData from imgur.
+	auth, err := postOAuthRequest(a.ClientId, a.ClientSecret,
+		a.responseType, a.grantType, secret)
+	if err != nil {
+		return nil
+	}
+	a.AuthData = auth
+
+	return nil
+}
+
+type AuthType int8
+
+type AuthData struct {
+	AccessToken     string `json:"access_token"`
+	RefreshToken    string `json:"refresh_token"`
+	expiresIn       int32  `json:"expires_in"`
+	TokenType       string `json:"token_type"`
+	AccountUsername string `json:"account_username"`
+	ExpirationTime  time.Time
 }
 
 func newAuthorizer(authType AuthType, clientId, clientSecret, state string) *Authorizer {
@@ -102,66 +176,28 @@ func newAuthorizer(authType AuthType, clientId, clientSecret, state string) *Aut
 	case AuthTypeCode:
 		responseType = responseTypeCode
 		grantType = grantTypeCode
-
-	case AuthTypeToken:
-		responseType = responseTypeToken
 	}
 
 	secretChan := make(chan string)
-	return &Authorizer{ClientId: clientId, ClientSecret: clientSecret, RequestState: state,
-		SecretChan: secretChan, secretChan: secretChan, AuthType: authType,
-		responseType: responseType, grantType: grantType}
+	return &Authorizer{ClientId: clientId, ClientSecret: clientSecret,
+		RequestState: state, SecretChan: secretChan, secretChan: secretChan,
+		AuthType: authType, responseType: responseType, grantType: grantType}
 }
 
-func (a *Authorizer) doOAuth() error {
-	if a.AuthType == AuthTypeAnonymous {
-		return errors.New("AuthTypeAnonymous can't do oAuth authentication!")
+func postOAuthRequest(clientId, clientSecret, responseType, grantType, secret string) (*AuthData, error) {
+	resp, err := http.PostForm(tokenUrl, url.Values{"client_id": {clientId},
+		responseType: {secret}, "client_secret": {clientSecret}, "grant_type": {grantType}})
+	if err != nil {
+		return nil, err
 	}
+	defer resp.Body.Close()
 
-	var oAuthUrl string
-	if len(a.RequestState) == 0 {
-		oAuthUrl = fmt.Sprintf(authUrl, a.ClientId, a.responseType)
-	} else {
-		oAuthUrl = fmt.Sprintf(authUrlState, a.ClientId, a.responseType, a.RequestState)
+	// Read and decode response
+	b, err := ioutil.ReadAll(resp.Body)
+	var auth AuthData
+	if err = json.Unmarshal(b, &auth); err != nil {
+		return nil, err
 	}
-
-	// Spawn browser to let user log in
-	cmd := exec.Command("xdg-open", oAuthUrl)
-	// Start doesn't block, so I don't know for what/when we
-	// could use the returned error.
-	cmd.Start()
-
-	// Wait for secret (pin or authorization code).
-	secret := <-a.secretChan
-
-	// This is a temporary hack to make token authentication work.
-	// What we really want here, is to get the data that was sent to the
-	// web server, i.e. access_token, token_type, and expires_in.
-	if a.AuthType == AuthTypeToken {
-		// TODO: figure out how we acquire AuthData from token request.
-		a.AuthData.AccessToken = secret
-		return nil
-	}
-
-	// Trade secret for access token and refresh token.
-	// This is only required for PIN and code authentication.
-	if a.AuthType == AuthTypePin || a.AuthType == AuthTypeCode {
-		resp, err := http.PostForm(tokenUrl, url.Values{"client_id": {a.ClientId},
-			a.responseType: {secret}, "client_secret": {a.ClientSecret}, "grant_type": {a.grantType}})
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
-
-		// Read and decode response
-		b, err := ioutil.ReadAll(resp.Body)
-		var auth AuthResponse
-		if err = json.Unmarshal(b, &auth); err != nil {
-			return err
-		}
-		auth.ExpirationTime = time.Now().Add(time.Duration(auth.expiresIn) * time.Second)
-		a.AuthData = &auth
-	}
-
-	return nil
+	auth.ExpirationTime = time.Now().Add(time.Duration(auth.expiresIn) * time.Second)
+	return &auth, nil
 }
