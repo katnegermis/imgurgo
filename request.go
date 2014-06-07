@@ -57,11 +57,10 @@ func (r *Request) UploadImage(i *Image) (*BasicResponse, error) {
 	}
 
 	resp, err := r.do(req)
-	// Can resp.Body be null? Might want to do this after error check.
-	defer resp.Body.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	// Verify that response is ok.
 	var bResp BasicResponse
