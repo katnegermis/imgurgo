@@ -64,14 +64,15 @@ func NewCodeAuthorizer(clientId, clientSecret, state string) *Authorizer {
 }
 
 func (a *Authorizer) Authorize(r *http.Request) error {
+	var err error
 	// Check whether full authentication or refreshing of access token is needed.
 	if a.AuthData == nil || !a.RefreshTokenValid() {
 		err := a.doOAuth()
-		if err != nil {
-			return err
-		}
 	} else if a.AccessTokenExpired() && a.RefreshTokenValid() {
-		return a.RefreshAccessToken()
+		err := a.RefreshAccessToken()
+	}
+	if err != nil {
+		return err
 	}
 
 	r.Header.Set("Authorization", fmt.Sprintf("%s %s",
@@ -95,8 +96,8 @@ func (a *Authorizer) RefreshAccessToken() error {
 
 func (a *Authorizer) SetRefreshToken(token string) error {
 	if len(token) != tokenLength {
-		return errors.New(fmt.Sprintf("Invalid refresh token '%s' given!",
-			token))
+		return errors.New(
+			fmt.Sprintf("Invalid refresh token '%s' given!", token))
 	}
 
 	if a.AuthData == nil {
