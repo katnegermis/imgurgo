@@ -95,7 +95,8 @@ func (a *Authorizer) RefreshAccessToken() error {
 
 func (a *Authorizer) SetRefreshToken(token string) error {
 	if len(token) != tokenLength {
-		return errors.New(fmt.Sprintf("Invalid refresh token '%s' given!", token))
+		return errors.New(fmt.Sprintf("Invalid refresh token '%s' given!",
+			token))
 	}
 
 	if a.AuthData == nil {
@@ -122,7 +123,8 @@ func (a *Authorizer) doOAuth() error {
 	if len(a.RequestState) == 0 {
 		oAuthUrl = fmt.Sprintf(authUrl, a.ClientId, a.responseType)
 	} else {
-		oAuthUrl = fmt.Sprintf(authUrlState, a.ClientId, a.responseType, a.RequestState)
+		oAuthUrl = fmt.Sprintf(authUrlState, a.ClientId, a.responseType,
+			a.RequestState)
 	}
 
 	// Spawn browser to let user log in.
@@ -135,8 +137,8 @@ func (a *Authorizer) doOAuth() error {
 	var secret string
 	select {
 	case <-time.Tick(1 * time.Minute):
-		return errors.New(fmt.Sprintf("We waited too long; the %s has timed out. Try again.",
-			a.responseType))
+		return errors.New(fmt.Sprintf(
+			"We waited too long; the %s has timed out. Try again.", a.responseType))
 	case secret = <-a.secretChan:
 	}
 
@@ -144,7 +146,7 @@ func (a *Authorizer) doOAuth() error {
 	auth, err := postOAuthRequest(a.ClientId, a.ClientSecret,
 		a.responseType, a.grantType, secret)
 	if err != nil {
-		return nil
+		return err
 	}
 	a.AuthData = auth
 
