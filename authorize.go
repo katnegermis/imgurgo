@@ -46,8 +46,8 @@ type Authorizer struct {
 
 func NewAnonymousAuthorizer(clientId string) *Authorizer {
 	// Create AuthData in such a way that no OAuth requests will be sent.
-	// This preserves the rest of the code from making special flows for
-	// the anonymous authorizer.
+	// This preserves the rest of the code from making special control
+	// flow for the anonymous authorizer.
 	authData := &AuthData{ExpirationTime: time.Now().Add(24 * 31 * time.Hour),
 		AccessToken: clientId, TokenType: "Client-ID",
 		RefreshToken: "0123456789012345678901234567890123456789"}
