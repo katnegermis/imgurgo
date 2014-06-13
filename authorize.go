@@ -56,17 +56,17 @@ func NewAnonymousAuthorizer(clientId string) *Authorizer {
 }
 
 func NewPinAuthorizer(clientId, clientSecret, state string) *Authorizer {
-	return newAuthorizer(AuthTypePin, clientId, clientSecret, state)
+	return newOAuthAuthorizer(AuthTypePin, clientId, clientSecret, state)
 }
 
 func NewCodeAuthorizer(clientId, clientSecret, state string) *Authorizer {
-	return newAuthorizer(AuthTypeCode, clientId, clientSecret, state)
+	return newOAuthAuthorizer(AuthTypeCode, clientId, clientSecret, state)
 }
 
 func (a *Authorizer) Authorize(r *http.Request) error {
 	var err error
 	// Check whether full authentication or refreshing of access token is needed.
-	if a.AuthData == nil || !a.RefreshTokenValid() {
+	if !a.AccessTokenValid() {
 		err = a.fullOAuthAuthentication()
 	} else if a.AccessTokenExpired() && a.RefreshTokenValid() {
 		err = a.RefreshAccessToken()
@@ -109,6 +109,14 @@ func (a *Authorizer) SetRefreshToken(token string) error {
 
 func (a *Authorizer) AccessTokenExpired() bool {
 	return time.Now().After(a.AuthData.ExpirationTime)
+}
+
+func (a *Authorizer) AccessTokenValid() bool {
+	// Maybe we should try to actually authorize with imgur here, but that
+	// would use the client's API credits. Instead we assume that the user
+	// of the library wont set an invalid AccessToken himself.
+	return a.AuthType == AuthTypeAnonymous ||
+		(a.AuthData != nil && len(a.AuthData.AccessToken) == tokenLength)
 }
 
 func (a *Authorizer) RefreshTokenValid() bool {
@@ -165,7 +173,7 @@ type AuthData struct {
 	ExpirationTime  time.Time
 }
 
-func newAuthorizer(authType AuthType, clientId, clientSecret, state string) *Authorizer {
+func newOAuthAuthorizer(authType AuthType, clientId, clientSecret, state string) *Authorizer {
 	var responseType, grantType string
 
 	switch authType {
@@ -202,5 +210,9 @@ func postOAuthRequest(clientId, clientSecret, responseType, grantType, secret st
 		return nil, err
 	}
 	auth.ExpirationTime = time.Now().Add(time.Duration(auth.expiresIn) * time.Second)
+
+	if auth.TokenType == "bearer" {
+		auth.TokenType = "Bearer"
+	}
 	return &auth, nil
 }
