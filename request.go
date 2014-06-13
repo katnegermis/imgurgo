@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 )
 
 const (
@@ -25,6 +26,58 @@ type BasicResponse struct {
 	Status  int32
 }
 
+func (b *BasicResponse) getUploadedImage() *UploadedImage {
+	img := &UploadedImage{}
+	m := b.Data.(map[string]interface{})
+
+	if val, ok := m["title"]; ok && val != nil {
+		img.Title = val.(string)
+	}
+	if val, ok := m["type"]; ok && val != nil {
+		img.Type = val.(string)
+	}
+	if val, ok := m["animated"]; ok && val != nil {
+		img.Animated = val.(bool)
+	}
+	if val, ok := m["views"]; ok && val != nil {
+		img.Views = val.(float64)
+	}
+	if val, ok := m["section"]; ok && val != nil {
+		img.Section = val.(string)
+	}
+	if val, ok := m["description"]; ok && val != nil {
+		img.Description = val.(string)
+	}
+	if val, ok := m["width"]; ok && val != nil {
+		img.Width = val.(float64)
+	}
+	if val, ok := m["height"]; ok && val != nil {
+		img.Height = val.(float64)
+	}
+	if val, ok := m["size"]; ok && val != nil {
+		img.Size = val.(float64)
+	}
+	if val, ok := m["bandwidth"]; ok && val != nil {
+		img.Bandwidth = val.(float64)
+	}
+	if val, ok := m["favorite"]; ok && val != nil {
+		img.Favorite = val.(bool)
+	}
+	if val, ok := m["deletehash"]; ok && val != nil {
+		img.DeleteHash = val.(string)
+	}
+	if val, ok := m["link"]; ok && val != nil {
+		img.Link = val.(string)
+	}
+	if val, ok := m["datetime"]; ok && val != nil {
+		img.DateTime = time.Unix(int64(val.(float64)), 0)
+	}
+	if val, ok := m["nsfw"]; ok && val != nil {
+		img.NSFW = val.(bool)
+	}
+	return img
+}
+
 type Request struct {
 	client     *http.Client
 	Authorizer Authorizer
@@ -34,7 +87,7 @@ func NewRequest(authorizer Authorizer) *Request {
 	return &Request{Authorizer: authorizer, client: &http.Client{}}
 }
 
-func (r *Request) UploadImageFromPath(imgPath string) (*BasicResponse, error) {
+func (r *Request) UploadImageFromPath(imgPath string) (*UploadedImage, error) {
 	imgData, err := Base64EncodeFile(imgPath)
 	if err != nil {
 		return nil, err
@@ -43,7 +96,7 @@ func (r *Request) UploadImageFromPath(imgPath string) (*BasicResponse, error) {
 	return r.UploadImage(image)
 }
 
-func (r *Request) UploadImage(i *Image) (*BasicResponse, error) {
+func (r *Request) UploadImage(i *Image) (*UploadedImage, error) {
 	if len(i.Image) == 0 {
 		return nil, errors.New("Image.Image not set. There's nothing to upload.")
 	}
@@ -71,9 +124,10 @@ func (r *Request) UploadImage(i *Image) (*BasicResponse, error) {
 
 	json.Unmarshal(b, &bResp)
 	if !bResp.Success {
-		return &bResp, errors.New("Something went wrong. Check the response.")
+		return nil, errors.New("Couldn't decode json response")
 	}
-	return &bResp, nil
+
+	return bResp.getUploadedImage(), nil
 }
 
 func (r *Request) do(req *http.Request) (*http.Response, error) {

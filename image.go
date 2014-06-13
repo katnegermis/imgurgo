@@ -2,6 +2,7 @@ package imgurgo
 
 import (
 	"net/url"
+	"time"
 )
 
 type Image struct {
@@ -24,4 +25,23 @@ func (i *Image) encode() string {
 		"description": {i.Description},
 	}
 	return val.Encode()
+}
+
+type UploadedImage struct {
+	Title       string
+	Type        string
+	Animated    bool
+	Views       float64
+	Section     string
+	Description string
+	Width       float64
+	Height      float64
+	Size        float64
+	Bandwidth   float64
+	Favorite    bool
+	DeleteHash  string
+	Link        string
+	Id          string
+	DateTime    time.Time
+	NSFW        bool
 }
