@@ -67,9 +67,9 @@ func (a *Authorizer) Authorize(r *http.Request) error {
 	var err error
 	// Check whether full authentication or refreshing of access token is needed.
 	if a.AuthData == nil || !a.RefreshTokenValid() {
-		err := a.doOAuth()
+		err = a.fullOAuthAuthentication()
 	} else if a.AccessTokenExpired() && a.RefreshTokenValid() {
-		err := a.RefreshAccessToken()
+		err = a.RefreshAccessToken()
 	}
 	if err != nil {
 		return err
@@ -115,7 +115,7 @@ func (a *Authorizer) RefreshTokenValid() bool {
 	return a.AuthData != nil && len(a.AuthData.RefreshToken) == tokenLength
 }
 
-func (a *Authorizer) doOAuth() error {
+func (a *Authorizer) fullOAuthAuthentication() error {
 	if a.AuthType == AuthTypeAnonymous {
 		return errors.New("AuthTypeAnonymous can't do oAuth authentication!")
 	}
