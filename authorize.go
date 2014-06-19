@@ -211,6 +211,8 @@ func postOAuthRequest(clientId, clientSecret, responseType, grantType, secret st
 	}
 	auth.ExpirationTime = time.Now().Add(time.Duration(auth.expiresIn) * time.Second)
 
+	// This is required to be done because imgur expects the type name to
+	// be capitalized, while it returns it in a non-capitalized form.
 	if auth.TokenType == "bearer" {
 		auth.TokenType = "Bearer"
 	}
