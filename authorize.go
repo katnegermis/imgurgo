@@ -63,7 +63,9 @@ func NewCodeAuthorizer(clientId, clientSecret, state string) *Authorizer {
 	return newOAuthAuthorizer(AuthTypeCode, clientId, clientSecret, state)
 }
 
-func (a *Authorizer) Authorize(r *http.Request) error {
+// Authorize sets the authorization header of the given http.Request,
+// but does not internally use or otherwise modify the given request.
+func (a *Authorizer) SetAuthHeaders(r *http.Request) error {
 	var err error
 	// Check whether full authentication or refreshing of access token is needed.
 	if !a.AccessTokenValid() {
