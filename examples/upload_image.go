@@ -50,7 +50,7 @@ func PinExample(clientId, clientSecret, path string) {
 }
 
 func CodeExample(clientId, clientSecret, path string) {
-	a := imgurgo.NewPinAuthorizer(clientId, clientSecret, "")
+	a := imgurgo.NewCodeAuthorizer(clientId, clientSecret, "")
 
 	// Start webserver to listen for imgur's callback.
 	// The thing that really is relevant here, is the usage of SecretChan.
