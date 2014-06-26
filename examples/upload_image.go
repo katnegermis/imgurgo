@@ -41,7 +41,7 @@ func PinExample(clientId, clientSecret, path string) {
 		a.SecretChan <- str[:len(str)-1]
 	}()
 
-	r := imgurgo.NewRequest(*a)
+	r := imgurgo.NewRequester(*a)
 	resp, err := r.UploadImageFromPath(path)
 	if err != nil {
 		log.Fatal(err)
@@ -66,7 +66,7 @@ func CodeExample(clientId, clientSecret, path string) {
 		http.ListenAndServe(":8080", nil)
 	}()
 
-	r := imgurgo.NewRequest(*a)
+	r := imgurgo.NewRequester(*a)
 	resp, err := r.UploadImageFromPath(path)
 	if err != nil {
 		log.Fatal(err)

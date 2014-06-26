@@ -12,15 +12,15 @@ const (
 	userAgent = "imgurgo library"
 )
 
-type Request struct {
+type Requester struct {
 	Authorizer Authorizer
 }
 
-func NewRequest(authorizer Authorizer) *Request {
-	return &Request{Authorizer: authorizer}
+func NewRequester(authorizer Authorizer) *Requester {
+	return &Requester{Authorizer: authorizer}
 }
 
-func (r *Request) UploadImageFromPath(path string) (*UploadedImage, error) {
+func (r *Requester) UploadImageFromPath(path string) (*UploadedImage, error) {
 	i, err := NewImageFromPath(path)
 	if err != nil {
 		return nil, err
@@ -28,7 +28,7 @@ func (r *Request) UploadImageFromPath(path string) (*UploadedImage, error) {
 	return i.Upload(r)
 }
 
-func (r *Request) Do(method, url string, data io.Reader) (*http.Response, error) {
+func (r *Requester) Do(method, url string, data io.Reader) (*http.Response, error) {
 	req, err := http.NewRequest(method, url, data)
 	if err != nil {
 		return nil, err

@@ -4,13 +4,13 @@ import (
 	"time"
 )
 
-type BasicResponse struct {
+type basicResponse struct {
 	Data    interface{}
 	Success bool
 	Status  int32
 }
 
-func (b *BasicResponse) getUploadedImage() *UploadedImage {
+func (b *basicResponse) getUploadedImage() *UploadedImage {
 	img := &UploadedImage{}
 	m := b.Data.(map[string]interface{})
 

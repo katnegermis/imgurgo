@@ -35,7 +35,7 @@ func (i *Image) encode() string {
 	return val.Encode()
 }
 
-func (i *Image) Upload(r *Request) (*UploadedImage, error) {
+func (i *Image) Upload(r *Requester) (*UploadedImage, error) {
 	if len(i.Image) == 0 {
 		return nil, errors.New("Image.Image not set. There's nothing to upload.")
 	}
@@ -48,7 +48,7 @@ func (i *Image) Upload(r *Request) (*UploadedImage, error) {
 	defer resp.Body.Close()
 
 	// Verify that response is ok.
-	var bResp BasicResponse
+	var bResp basicResponse
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
