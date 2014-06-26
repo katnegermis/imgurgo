@@ -2,7 +2,6 @@ package imgurgo
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -15,7 +14,7 @@ import (
 )
 
 type Image struct {
-	// Image is a base64 encoded binary image file.
+	// Image is a binary image file.
 	Image       string
 	Title       string
 	Album       string
@@ -63,10 +62,13 @@ func (i *Image) Upload(r *Request) (*UploadedImage, error) {
 }
 
 func NewImageFromPath(imgPath string) (*Image, error) {
-	imgData, err := Base64EncodeFile(imgPath)
+	f, err := os.Open(imgPath)
 	if err != nil {
 		return nil, err
 	}
+	var imgData bytes.Buffer
+	io.Copy(&imgData, f)
+
 	return &Image{Image: imgData.String(), Name: path.Base(imgPath)}, nil
 }
 
@@ -87,21 +89,4 @@ type UploadedImage struct {
 	Id          string
 	DateTime    time.Time
 	NSFW        bool
-}
-
-func Base64EncodeFile(p string) (*bytes.Buffer, error) {
-	var err error
-	f, err := os.Open(p)
-	if err != nil {
-		return nil, err
-	}
-
-	var b64File bytes.Buffer
-	// Is there a way to create a base64 encoder which doesn't require
-	// us to copy the whole file to memory in order to decode? A base64
-	// encoder which itself is a reader.
-	b64Buf := base64.NewEncoder(base64.StdEncoding, &b64File)
-	io.Copy(b64Buf, f)
-	b64Buf.Close()
-	return &b64File, nil
 }
