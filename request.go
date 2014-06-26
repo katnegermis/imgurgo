@@ -9,15 +9,15 @@ const (
 	apiUrl    = "https://api.imgur.com/"
 	apiVerUrl = apiUrl + "3/"
 	imgUrl    = apiVerUrl + "image"
+	userAgent = "imgurgo library"
 )
 
 type Request struct {
-	client     *http.Client
 	Authorizer Authorizer
 }
 
 func NewRequest(authorizer Authorizer) *Request {
-	return &Request{Authorizer: authorizer, client: &http.Client{}}
+	return &Request{Authorizer: authorizer}
 }
 
 func (r *Request) UploadImageFromPath(path string) (*UploadedImage, error) {
@@ -29,19 +29,17 @@ func (r *Request) UploadImageFromPath(path string) (*UploadedImage, error) {
 }
 
 func (r *Request) Do(method, url string, data io.Reader) (*http.Response, error) {
-	// Make sure that r.client has been initialized.
-	if r.client == nil {
-		r.client = &http.Client{}
-	}
-
 	req, err := http.NewRequest(method, url, data)
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Add("User-Agent", userAgent)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	if err := r.Authorizer.Authorize(req); err != nil {
+
+	// Add authorization headers to the newly created request.
+	if err := r.Authorizer.SetAuthHeaders(req); err != nil {
 		return nil, err
 	}
 
-	return r.client.Do(req)
+	return http.DefaultClient.Do(req)
 }
