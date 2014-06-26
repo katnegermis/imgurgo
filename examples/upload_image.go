@@ -10,14 +10,17 @@ import (
 )
 
 func main() {
-	// AnonymousExample(clientId, path)
+	clientId := os.Getenv("IMGURGO_CLIENTID")
+	clientSecret := os.Getenv("IMGURGO_CLIENTSECRET")
+	path := "/home/katnegermis/pic.png"
+
+	AnonymousExample(clientId, path)
+	CodeExample(clientId, clientSecret, path)
 	// PinExample(clientId, clientSecret, path)
-	// CodeExample(clientId, clientSecret, path)
 }
 
 func AnonymousExample(clientId, path string) {
-	a := imgurgo.NewAnonymousAuthorizer(clientId)
-	r := &imgurgo.Request{Authorizer: *a}
+	r := imgurgo.NewRequesterAnonymous(clientId)
 	res, err := r.UploadImageFromPath(path)
 	if err != nil {
 		log.Fatal(err)
@@ -26,7 +29,7 @@ func AnonymousExample(clientId, path string) {
 }
 
 func PinExample(clientId, clientSecret, path string) {
-	a := imgurgo.NewPinAuthorizer(clientId, clientSecret, "")
+	r := imgurgo.NewRequesterAnonymous(clientId)
 
 	// Wait for user to type PIN in to terminal.
 	// The thing that really is relevant here, is the usage of SecretChan.
@@ -38,10 +41,9 @@ func PinExample(clientId, clientSecret, path string) {
 			log.Fatal(err)
 		}
 		// Remove newline.
-		a.SecretChan <- str[:len(str)-1]
+		r.Authorizer.SecretChan <- str[:len(str)-1]
 	}()
 
-	r := imgurgo.NewRequester(*a)
 	resp, err := r.UploadImageFromPath(path)
 	if err != nil {
 		log.Fatal(err)
@@ -50,7 +52,7 @@ func PinExample(clientId, clientSecret, path string) {
 }
 
 func CodeExample(clientId, clientSecret, path string) {
-	a := imgurgo.NewCodeAuthorizer(clientId, clientSecret, "")
+	r := imgurgo.NewRequesterCode(clientId, clientSecret, "")
 
 	// Start webserver to listen for imgur's callback.
 	// The thing that really is relevant here, is the usage of SecretChan.
@@ -61,12 +63,11 @@ func CodeExample(clientId, clientSecret, path string) {
 				log.Fatal(err)
 			}
 			w.Write([]byte("You can now safely close this window."))
-			a.SecretChan <- r.Form.Get("code")
+			r.Authorizer.SecretChan <- r.Form.Get("code")
 		})
 		http.ListenAndServe(":8080", nil)
 	}()
 
-	r := imgurgo.NewRequester(*a)
 	resp, err := r.UploadImageFromPath(path)
 	if err != nil {
 		log.Fatal(err)

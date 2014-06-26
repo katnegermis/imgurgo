@@ -21,9 +21,8 @@ const (
 	AuthTypePin
 	AuthTypeCode
 
-	responseTypePin   = "pin"
-	responseTypeCode  = "code"
-	responseTypeToken = "token"
+	responseTypePin  = "pin"
+	responseTypeCode = "code"
 
 	grantTypePin  = "pin"
 	grantTypeCode = "authorization_code"
@@ -44,7 +43,7 @@ type Authorizer struct {
 	grantType    string
 }
 
-func NewAnonymousAuthorizer(clientId string) *Authorizer {
+func newAnonymousAuthorizer(clientId string) *Authorizer {
 	// Create AuthData in such a way that no OAuth requests will be sent.
 	// This preserves the rest of the code from making special control
 	// flow for the anonymous authorizer.
@@ -55,11 +54,11 @@ func NewAnonymousAuthorizer(clientId string) *Authorizer {
 		AuthData: authData}
 }
 
-func NewPinAuthorizer(clientId, clientSecret, state string) *Authorizer {
+func newPinAuthorizer(clientId, clientSecret, state string) *Authorizer {
 	return newOAuthAuthorizer(AuthTypePin, clientId, clientSecret, state)
 }
 
-func NewCodeAuthorizer(clientId, clientSecret, state string) *Authorizer {
+func newCodeAuthorizer(clientId, clientSecret, state string) *Authorizer {
 	return newOAuthAuthorizer(AuthTypeCode, clientId, clientSecret, state)
 }
 
@@ -180,7 +179,7 @@ func newOAuthAuthorizer(authType AuthType, clientId, clientSecret, state string)
 
 	switch authType {
 	case AuthTypeAnonymous:
-		return NewAnonymousAuthorizer(clientId)
+		return newAnonymousAuthorizer(clientId)
 
 	case AuthTypePin:
 		responseType = responseTypePin

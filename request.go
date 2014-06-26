@@ -16,8 +16,23 @@ type Requester struct {
 	Authorizer Authorizer
 }
 
-func NewRequester(authorizer Authorizer) *Requester {
+func newRequester(authorizer Authorizer) *Requester {
 	return &Requester{Authorizer: authorizer}
+}
+
+func NewRequesterAnonymous(clientId string) *Requester {
+	a := newAnonymousAuthorizer(clientId)
+	return newRequester(*a)
+}
+
+func NewRequesterPin(clientId, secret, state string) *Requester {
+	a := newPinAuthorizer(clientId, secret, state)
+	return newRequester(*a)
+}
+
+func NewRequesterCode(clientId, secret, state string) *Requester {
+	a := newCodeAuthorizer(clientId, secret, state)
+	return newRequester(*a)
 }
 
 func (r *Requester) UploadImageFromPath(path string) (*UploadedImage, error) {
