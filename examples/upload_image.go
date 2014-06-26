@@ -34,9 +34,9 @@ func PinExample(clientId, clientSecret, path string) {
 	// Wait for user to type PIN in to terminal.
 	// The thing that really is relevant here, is the usage of SecretChan.
 	go func() {
-		r := bufio.NewReader(os.Stdin)
+		rdr := bufio.NewReader(os.Stdin)
 		fmt.Print("Please input PIN:")
-		str, err := r.ReadString('\n')
+		str, err := rdr.ReadString('\n')
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -57,13 +57,13 @@ func CodeExample(clientId, clientSecret, path string) {
 	// Start webserver to listen for imgur's callback.
 	// The thing that really is relevant here, is the usage of SecretChan.
 	go func() {
-		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			err := r.ParseForm()
+		http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+			err := req.ParseForm()
 			if err != nil {
 				log.Fatal(err)
 			}
 			w.Write([]byte("You can now safely close this window."))
-			r.Authorizer.SecretChan <- r.Form.Get("code")
+			r.Authorizer.SecretChan <- req.Form.Get("code")
 		})
 		http.ListenAndServe(":8080", nil)
 	}()
