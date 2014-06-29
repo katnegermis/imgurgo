@@ -73,4 +73,11 @@ func CodeExample(clientId, clientSecret, path string) {
 		log.Fatal(err)
 	}
 	log.Print(resp)
+
+	log.Print("Deleting image..")
+	err = resp.Delete()
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Print("Image deleted!")
 }
