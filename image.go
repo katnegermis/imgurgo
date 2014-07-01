@@ -152,6 +152,8 @@ func (ui *UploadedImage) UpdateTitleDesc(title, desc string) error {
 		return errors.New("Error updating image data")
 	}
 
+	// Update succeeded, update local struct.
+	ui.Title, ui.Description = title, desc
 	return nil
 }
 
