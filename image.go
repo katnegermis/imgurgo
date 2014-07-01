@@ -52,6 +52,9 @@ func (i *Image) Upload(r *Requester) (*UploadedImage, error) {
 	bResp, err := getBasicResponse(resp.Body)
 	if err != nil {
 		return nil, err
+	} else if !bResp.Success {
+		return nil, errors.New(fmt.Sprintf(
+			"Failed to upload image. HTTP error code: %d", bResp.Status))
 	}
 
 	ui := bResp.getUploadedImage()
@@ -59,6 +62,9 @@ func (i *Image) Upload(r *Requester) (*UploadedImage, error) {
 	return ui, nil
 }
 
+// NewImageFromPath initializes an Image struct with raw data
+// from the given image path. The user should initialize
+// the rest of the fields in the struct, e.g. title, description etc.
 func NewImageFromPath(imgPath string) (*Image, error) {
 	f, err := os.Open(imgPath)
 	if err != nil {
@@ -70,6 +76,7 @@ func NewImageFromPath(imgPath string) (*Image, error) {
 	return &Image{Image: imgData.String(), Name: path.Base(imgPath)}, nil
 }
 
+// UploadedImage holds information about an image which resides on the servers of imgur.com.
 type UploadedImage struct {
 	Title       string
 	Type        string
@@ -91,49 +98,72 @@ type UploadedImage struct {
 	// Pointer to the requester which retrieved information about this image.
 	// We know that the requester which retrieved the information is authorized
 	// to modify it, and storing it in the image's struct let's us implement
-	// functionality directly on the image.
+	// functionality directly on the image, i.e. Delete, Update.
 	requester *Requester
 }
 
-func (ui *UploadedImage) Delete() error {
-	// Use the image's DeleteHash if it's uploaded anonymously, Id if not.
-	var id string
-	if len(ui.Id) > 0 {
-		id = ui.Id
-	} else {
-		id = ui.DeleteHash
+// GetId returns the id of an image; in case the image been uploaded anonymously
+// it doesn't have an id, and the image's delete hash will be returned instead.
+func (ui *UploadedImage) GetId() string {
+	if len(ui.Id) <= 0 {
+		return ui.DeleteHash
 	}
-	delUrl = fmt.Sprintf("/%s/%s", imgUrl, id)
+	return ui.Id
+}
+
+func (ui *UploadedImage) Delete() error {
+	delUrl := fmt.Sprintf("%s/%s", imgUrl, ui.GetId())
 	resp, err := ui.requester.Do("DELETE", delUrl, nil)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 
+	// Check whether request succeeded.
 	bResp, err := getBasicResponse(resp.Body)
 	if err != nil {
 		return err
 	}
-
-	fmt.Print(bResp.Data)
-
 	if !bResp.Success {
 		return errors.New("Error deleting image")
+	}
+
+	// ui has been successfully deleted. Delete the reference to it
+	// such that it no longer can be used.
+	ui = nil
+	return nil
+}
+
+func (ui *UploadedImage) UpdateTitleDesc(title, desc string) error {
+	body := url.Values{"title": {title}, "description": {desc}}
+	data := strings.NewReader(body.Encode())
+	resp, err := ui.requester.Do("PUT", imgUrl, data)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	// Check whether request succeeded.
+	bResp, err := getBasicResponse(resp.Body)
+	if err != nil {
+		return err
+	}
+	if !bResp.Success {
+		return errors.New("Error updating image data")
 	}
 
 	return nil
 }
 
 func getBasicResponse(body io.Reader) (*basicResponse, error) {
-	// Verify that response is ok.
-	var bResp basicResponse
+	// Read response and decode JSON.
 	b, err := ioutil.ReadAll(body)
 	if err != nil {
 		return nil, err
 	}
-	json.Unmarshal(b, &bResp)
-	if !bResp.Success {
-		return nil, errors.New("Couldn't decode json response")
+	var bResp basicResponse
+	if err := json.Unmarshal(b, &bResp); err != nil {
+		return nil, err
 	}
 	return &bResp, nil
 }
