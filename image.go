@@ -135,9 +135,9 @@ func (ui *UploadedImage) Delete() error {
 }
 
 func (ui *UploadedImage) UpdateTitleDesc(title, desc string) error {
-	body := url.Values{"title": {title}, "description": {desc}}
-	data := strings.NewReader(body.Encode())
-	resp, err := ui.requester.Do("PUT", imgUrl, data)
+	data := url.Values{"title": {title}, "description": {desc}}
+	body := strings.NewReader(data.Encode())
+	resp, err := ui.requester.Do("PUT", imgUrl, body)
 	if err != nil {
 		return err
 	}
