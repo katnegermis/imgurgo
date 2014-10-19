@@ -15,6 +15,6 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Printf("Uploaded:\n    '%s'\nto\n    %s\n", p, img.Link)
+		fmt.Printf("%s\n", img.Link)
 	}
 }
