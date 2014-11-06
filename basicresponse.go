@@ -1,7 +1,6 @@
 package imgurgo
 
 import (
-	"strconv"
 	"time"
 )
 
@@ -40,8 +39,7 @@ func (b *basicResponse) getUploadedImage() *UploadedImage {
 		img.Height = val.(float64)
 	}
 	if val, ok := m["size"]; ok && val != nil {
-		f, _ := strconv.ParseFloat(val.(string), 64)
-		img.Size = f
+		img.Size = val.(float64)
 	}
 	if val, ok := m["bandwidth"]; ok && val != nil {
 		img.Bandwidth = val.(float64)
